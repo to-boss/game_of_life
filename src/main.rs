@@ -79,13 +79,18 @@ impl Board {
         }
     }
 
-    pub fn mouse_to_cell_position(&self) -> (usize, usize) {
+    /// Returns the mouse to cell position of this [`Board`].
+    /// Fails if not on the board.
+    pub fn mouse_to_cell_position(&self) -> Option<(usize, usize)> {
         let (x, y) = mouse_position();
         let size_f32 = CELL_SIZE as f32;
         let offset = self.offset as f32;
-        let x = ((x - offset) / size_f32) as usize;
-        let y = ((y - offset) / size_f32) as usize;
-        (x, y)
+        let x = (x - offset) / size_f32;
+        let y = (y - offset) / size_f32;
+        if x < 0. || y < 0. {
+            return None;
+        }
+        Some((x as usize, y as usize))
     }
 
     fn draw_grid(&self) {
@@ -94,13 +99,22 @@ impl Board {
 
         for i in 0..(BOARD_SIZE + 1) as usize {
             let i = ((i * CELL_SIZE) + self.offset) as f32;
-            draw_line(i, offset, i, max, 0.5, BLACK);
-            draw_line(offset, i, max, i, 0.5, BLACK);
+            draw_line(i, offset, i, max, 1., GRAY);
+            draw_line(offset, i, max, i, 1., GRAY);
         }
     }
 }
 
-#[macroquad::main("Game of Life")]
+fn window_conf() -> Conf {
+    Conf {
+        window_title: "Game of Life".to_owned(),
+        window_width: ((BOARD_SIZE * CELL_SIZE) + 80) as i32,
+        window_height: ((BOARD_SIZE * CELL_SIZE) + 80) as i32,
+        ..Default::default()
+    }
+}
+
+#[macroquad::main(window_conf)]
 async fn main() {
     let mut board = Board::init();
     let mut ticking = false;
@@ -123,14 +137,23 @@ async fn main() {
         clear_background(WHITE);
 
         let rect_color = if ticking { RED } else { GREEN };
+
         draw_rectangle(play.x, play.y, play.w, play.h, rect_color);
         draw_rectangle(reset.x, reset.y, reset.w, reset.h, BLACK);
-
-        board.draw();
         draw_debug_text();
+        draw_controls();
+        board.draw();
 
         if is_key_pressed(KeyCode::Space) {
+            ticking = !ticking;
+        }
+
+        if is_key_pressed(KeyCode::S) {
             board.tick();
+        }
+
+        if is_key_pressed(KeyCode::R) {
+            board.reset();
         }
 
         if is_mouse_button_pressed(MouseButton::Left) {
@@ -143,9 +166,10 @@ async fn main() {
                 board.reset();
             }
 
-            let (x, y) = board.mouse_to_cell_position();
-            if x < BOARD_SIZE && y < BOARD_SIZE {
-                board.switch_cell(x, y);
+            if let Some((x, y)) = board.mouse_to_cell_position() {
+                if x < BOARD_SIZE && y < BOARD_SIZE {
+                    board.switch_cell(x, y);
+                }
             }
         }
 
@@ -169,20 +193,19 @@ fn draw_cell(x: usize, y: usize, offset: usize) {
     draw_rectangle(x, y, cell_size, cell_size, BLACK);
 }
 
-fn draw_debug_text() {
-    draw_text(
-        format!("FPS: {}", get_fps()).as_str(),
-        screen_width() - 44.,
-        10.,
-        11.,
-        BLACK,
-    );
+fn draw_controls() {
+    let offset = 40. + 40. + 10. + 40. + 10. + 10.;
+    draw_text("Space: Play/Pause", offset, 10., 11., BLACK);
+    draw_text("S: Single Step", offset, 20., 11., BLACK);
+    draw_text("R: Reset Board", offset, 30., 11., BLACK);
+}
 
-    draw_text(
-        format!("Mouse: ({}, {})", mouse_position().0, mouse_position().1).as_str(),
-        screen_width() - 88.,
-        20.,
-        11.,
-        BLACK,
-    );
+fn draw_debug_text() {
+    let x_pos = screen_width() - 100.;
+
+    let fps_text = format!("FPS: {}", get_fps());
+    draw_text(&fps_text, x_pos, 10., 11., BLACK);
+
+    let mouse_text = format!("Mouse: ({}, {})", mouse_position().0, mouse_position().1);
+    draw_text(&mouse_text, x_pos, 20., 11., BLACK);
 }
