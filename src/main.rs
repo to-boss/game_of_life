@@ -80,16 +80,23 @@ impl Board {
     }
 
     /// Returns the mouse to cell position of this [`Board`].
-    /// Fails if not on the board.
+    /// Returns none if not in the board.
     pub fn mouse_to_cell_position(&self) -> Option<(usize, usize)> {
-        let (x, y) = mouse_position();
-        let size_f32 = CELL_SIZE as f32;
+        let size = CELL_SIZE as f32;
+        let board_size = BOARD_SIZE as f32;
         let offset = self.offset as f32;
-        let x = (x - offset) / size_f32;
-        let y = (y - offset) / size_f32;
-        if x < 0. || y < 0. {
+
+        let (x, y) = mouse_position();
+        let x = (x - offset) / size;
+        let y = (y - offset) / size;
+
+        let out_of_lower_bounds = x < 0. || y < 0.;
+        let out_of_upper_bounds = x >= board_size || y >= board_size;
+
+        if out_of_lower_bounds || out_of_upper_bounds {
             return None;
         }
+
         Some((x as usize, y as usize))
     }
 
@@ -134,16 +141,6 @@ async fn main() {
     };
 
     loop {
-        clear_background(WHITE);
-
-        let rect_color = if ticking { RED } else { GREEN };
-
-        draw_rectangle(play.x, play.y, play.w, play.h, rect_color);
-        draw_rectangle(reset.x, reset.y, reset.w, reset.h, BLACK);
-        draw_debug_text();
-        draw_controls();
-        board.draw();
-
         if is_key_pressed(KeyCode::Space) {
             ticking = !ticking;
         }
@@ -161,17 +158,22 @@ async fn main() {
             if play.contains(Vec2::new(mouse_x, mouse_y)) {
                 ticking = !ticking;
             }
-
             if reset.contains(Vec2::new(mouse_x, mouse_y)) {
                 board.reset();
             }
-
             if let Some((x, y)) = board.mouse_to_cell_position() {
-                if x < BOARD_SIZE && y < BOARD_SIZE {
-                    board.switch_cell(x, y);
-                }
+                board.switch_cell(x, y);
             }
         }
+
+        let rect_color = if ticking { RED } else { GREEN };
+
+        clear_background(WHITE);
+        draw_rectangle(play.x, play.y, play.w, play.h, rect_color);
+        draw_rectangle(reset.x, reset.y, reset.w, reset.h, BLACK);
+        draw_debug_text();
+        draw_controls();
+        board.draw();
 
         if time_passed < 1. / 60. {
             time_passed += get_frame_time();
