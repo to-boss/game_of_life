@@ -18,6 +18,15 @@ impl Board {
         self.cells = [[None; BOARD_SIZE]; BOARD_SIZE];
     }
 
+    pub fn fill_random(&mut self) {
+        for x in 0..BOARD_SIZE {
+            for y in 0..BOARD_SIZE {
+                let num = rand::gen_range(0, 2);
+                self.cells[x][y] = if num == 0 { Some(true) } else { None };
+            }
+        }
+    }
+
     pub fn tick(&mut self) {
         let mut new_cells = [[None; BOARD_SIZE]; BOARD_SIZE];
 
